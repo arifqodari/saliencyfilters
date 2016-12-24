@@ -17,7 +17,6 @@ Required Packages
 -  numpy
 -  scipy
 -  scikit-image
--  OpenCV 2.4.x
 
 Installation
 ------------
