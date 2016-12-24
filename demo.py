@@ -14,7 +14,7 @@ def main(input_image, output_image):
     end_time = time.time() - start_time
     print 'time needed to compute saliency map', end_time
 
-    io.imsave(output_image, saliency)
+    io.imsave(output_image, (saliency * 255).astype('uint8'))
 
 
 if __name__ == '__main__':
