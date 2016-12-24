@@ -1,5 +1,6 @@
 import numpy as np
-import cv2
+from skimage import img_as_float
+from skimage.color import rgb2lab
 from skimage.segmentation import slic
 from scipy.spatial.distance import cdist
 
@@ -31,13 +32,13 @@ class SaliencyFilters:
     def compute_saliency(self, image):
         """
         input:
-        - image in BGR uint8
+        - image in RGB uint8
         output:
         - saliency map in uint8
         """
 
         # 1 - abstraction process
-        superpixels, lab_color, bgr_color, position = self.__abstraction(image)
+        superpixels, lab_color, rgb_color, position = self.__abstraction(image)
 
         # 2 - compute element uniqueness
         uniqueness = self.__uniqueness(superpixels, lab_color, position)
@@ -46,7 +47,7 @@ class SaliencyFilters:
         distribution = self.__distribution(superpixels, lab_color, position)
 
         # 4 - saliency assignment
-        saliency = self.__saliency(uniqueness, distribution, bgr_color,
+        saliency = self.__saliency(uniqueness, distribution, rgb_color,
                                    position)
 
         # construct saliency map
@@ -81,34 +82,31 @@ class SaliencyFilters:
         return weight
 
     def __abstraction(self, image):
-        # convert to lab and normalized lab
-        bgr = image.astype('float32') / 255.0
-        lab = cv2.cvtColor(bgr, cv2.COLOR_BGR2LAB).astype('float')
-        nlab = lab + np.array([0, 128, 128])
-        nlab /= np.array([100, 255, 255])
+        nrgb = img_as_float(image)
+        lab = rgb2lab(nrgb)
+        nlab = (lab + np.array([0, 128, 128])) / np.array([100, 255, 255])
 
         # generate superpixels
         superpixels = self.__generate_superpixels(lab)
-        max_segments = superpixels.max() + 1
+        n_segments = superpixels.max() + 1
 
         # construct position matrix
-        max_y, max_x = np.array(image.shape[:2]) - 1
+        max_y, max_x = np.array(superpixels.shape) - 1
         x = np.linspace(0, max_x, image.shape[1]) / max_x
         y = np.linspace(0, max_y, image.shape[0]) / max_y
-        xv, yv = np.meshgrid(x, y)
-        position = np.dstack((xv, yv))
+        position = np.dstack((np.meshgrid(x, y)))
 
         # compute mean color and position
-        mean_lab = np.zeros((max_segments, 3))
-        mean_bgr = np.zeros((max_segments, 3))
-        mean_position = np.zeros((max_segments, 2))
+        mean_lab = np.zeros((n_segments, 3))
+        mean_rgb = np.zeros((n_segments, 3))
+        mean_position = np.zeros((n_segments, 2))
         for superpixel in np.unique(superpixels):
             mask = superpixels == superpixel
             mean_lab[superpixel, :] = nlab[mask, :].mean(axis=0)
-            mean_bgr[superpixel, :] = bgr[mask, :].mean(axis=0)
+            mean_rgb[superpixel, :] = nrgb[mask, :].mean(axis=0)
             mean_position[superpixel, :] = position[mask, :].mean(axis=0)
 
-        return superpixels, mean_lab, mean_bgr, mean_position
+        return superpixels, mean_lab, mean_rgb, mean_position
 
     def __uniqueness(self, superpixels, color, position):
         weight = self.__gaussian_weight(position, self.__uniq_sigma)
