@@ -14,7 +14,6 @@ IEEE Conference on. IEEE, 2012.
 - numpy
 - scipy
 - scikit-image
-- OpenCV 2.4.x
 
 ## Installation
 
